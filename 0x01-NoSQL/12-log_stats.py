@@ -3,43 +3,28 @@
 Aggregation operations
 """
 from pymongo import MongoClient
-from typing import Tuple
 
+# Connect to the MongoDB database
+client = MongoClient()
+db = client.logs
+collection = db.nginx
 
-def get_nginx_stats() -> Tuple:
-    """
-    Queries nginx collection for specific data
-    - Returns:
-        - count of all documents
-        - count of each method in the collection
-        - count of each GET calls to /status path
-    """
-    client: MongoClient = MongoClient()
-    db = client.logs
-    collection = db.nginx
-    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-    method_stats = []
-    for method in methods:
-        method_count = collection.count_documents({'method': method})
-        method_stats.append({'method': method, 'count': method_count})
-    doc_count = collection.estimated_document_count()
-    status_path_stats = collection.count_documents({'method': 'GET',
-                                                    'path': '/status'})
-    client.close()
-    return doc_count, method_stats, status_path_stats
+# Count the total number of documents
+total_logs = collection.count_documents({})
 
+# Count the number of documents for each HTTP method
+http_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+method_counts = {method: collection.count_documents({"method": method}) for method in http_methods}
 
-def print_nginx_stats() -> None:
-    """
-    Prints stats from nginx query
-    """
-    doc_count, method_stats, status_path_stats = get_nginx_stats()
-    print(f'{doc_count} logs')
-    print('Methods:')
-    for method in method_stats:
-        print(f'\tmethod {method.get("method")}: {method.get("count")}')
-    print(f'{status_path_stats} status check')
+# Count the number of documents with method=GET and path=/status
+status_path_count = collection.count_documents({"method": "GET", "path": "/status"})
 
+# Display the statistics in the exact format
+print(f"{total_logs} logs")
+print("Methods:")
+for method in http_methods:
+    print(f"\tmethod {method}: {method_counts[method]}")
+print(f"{status_path_count} status check")
 
-if __name__ == '__main__':
-    print_nginx_stats()
+# Close the MongoDB connection
+client.close()
